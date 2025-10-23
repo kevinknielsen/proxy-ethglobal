@@ -5,13 +5,11 @@
  */
 
 import { EnvioEvent, Proposal, ProposalState } from "@/types/governance";
+import { ethers } from "ethers";
 
 const COMPOUND_GOVERNOR_ADDRESS = process.env.COMPOUND_GOVERNOR_ADDRESS || "0xc0Da02939E1441F497fd74F78cE7Decb17B66529";
 const ENVIO_API_URL = process.env.ENVIO_API_URL || "https://eth.hypersync.xyz";
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || "https://eth.llamarpc.com";
-
-// Use HTTP API instead of native client for serverless compatibility
-const USE_HTTP_API = true;
 
 // Event signatures for Compound Governor
 const EVENT_SIGNATURES = {
@@ -24,10 +22,8 @@ const EVENT_SIGNATURES = {
 export class EnvioService {
   private initialized: boolean = false;
 
-  async initialize() {
-    if (this.initialized) return true;
+  initialize() {
     this.initialized = true;
-    return true;
   }
 
   /**
@@ -100,12 +96,10 @@ export class EnvioService {
    */
   async getRecentProposals(limit: number = 10): Promise<Proposal[]> {
     try {
-      await this.initialize();
+      this.initialize();
       
       console.log("🔍 Querying Compound Governor proposals via Envio HyperSync...");
 
-      // Use ethers.js with Envio's RPC infrastructure for reliable event querying
-      const { ethers } = await import("ethers");
       const provider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
 
       // Compound Governor ABI for proposal queries
@@ -137,21 +131,34 @@ export class EnvioService {
       // Get the most recent proposals up to the limit
       for (const event of events.slice(-limit)) {
         try {
+          // Cast to EventLog to access args
+          if (!('args' in event)) continue;
           const proposalId = event.args?.proposalId;
           if (!proposalId) continue;
 
-          // Get current state and votes
+          // Get current state and votes with error handling
           const [state, votes] = await Promise.all([
-            governor.state(proposalId),
-            governor.proposalVotes(proposalId),
+            governor.state(proposalId).catch(err => {
+              console.warn(`Failed to fetch state for proposal ${proposalId}:`, err);
+              return 0; // Default to Pending state
+            }),
+            governor.proposalVotes(proposalId).catch(err => {
+              console.warn(`Failed to fetch votes for proposal ${proposalId}:`, err);
+              return { forVotes: 0n, againstVotes: 0n, abstainVotes: 0n };
+            }),
           ]);
+
+          const eventValues = event.args?.values;
+          const values = Array.isArray(eventValues) 
+            ? eventValues.map((v: any) => BigInt(v.toString()))
+            : [];
 
           proposals.push({
             id: proposalId.toString(),
             proposalId: BigInt(proposalId.toString()),
             proposer: event.args?.proposer || "0x0",
             targets: event.args?.targets || [],
-            values: event.args?.values?.map((v: any) => BigInt(v.toString())) || [],
+            values,
             signatures: event.args?.signatures || [],
             calldatas: event.args?.calldatas || [],
             startBlock: BigInt(event.args?.startBlock?.toString() || "0"),
@@ -186,8 +193,7 @@ export class EnvioService {
   /**
    * Stream governance events in real-time (polling-based for serverless)
    */
-  async *streamEvents(): AsyncGenerator<EnvioEvent> {
-    const { ethers } = await import("ethers");
+  async *streamEvents(signal?: AbortSignal): AsyncGenerator<EnvioEvent> {
     const provider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
     
     const governorABI = [
@@ -205,18 +211,30 @@ export class EnvioService {
 
     let currentBlock = await provider.getBlockNumber();
 
-    while (true) {
+    while (!signal?.aborted) {
       try {
         const latestBlock = await provider.getBlockNumber();
         
         if (latestBlock > currentBlock) {
-          // Query all governance events in the new blocks
-          const events = await governor.queryFilter("*", currentBlock, latestBlock);
+          // Query specific governance events to avoid unrelated events
+          const [created, queued, executed, voteCast] = await Promise.all([
+            governor.queryFilter(governor.filters.ProposalCreated(), currentBlock, latestBlock),
+            governor.queryFilter(governor.filters.ProposalQueued(), currentBlock, latestBlock),
+            governor.queryFilter(governor.filters.ProposalExecuted(), currentBlock, latestBlock),
+            governor.queryFilter(governor.filters.VoteCast(), currentBlock, latestBlock),
+          ]);
+          
+          const events = [...created, ...queued, ...executed, ...voteCast].sort(
+            (a, b) => a.blockNumber - b.blockNumber
+          );
           
           for (const event of events) {
+            // Only process EventLog entries with args and eventName
+            if (!('args' in event) || !('eventName' in event)) continue;
+            
             yield {
               type: event.eventName as EnvioEvent["type"],
-              proposalId: event.args?.proposalId?.toString() || "0",
+              proposalId: (event.args as any)?.proposalId?.toString() || "0",
               blockNumber: event.blockNumber,
               timestamp: Date.now(),
               data: event,
@@ -251,7 +269,6 @@ export class EnvioService {
 
   private async getCurrentBlock(): Promise<number> {
     try {
-      const { ethers } = await import("ethers");
       const provider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
       return await provider.getBlockNumber();
     } catch (error) {

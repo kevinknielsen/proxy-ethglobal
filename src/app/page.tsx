@@ -1,6 +1,8 @@
 import AgentStatus from "@/components/AgentStatus";
 import ProposalList from "@/components/ProposalList";
 import TransactionHistory from "@/components/TransactionHistory";
+import DelegateButton from "@/components/DelegateButton";
+import VotingPowerDisplay from "@/components/VotingPowerDisplay";
 import { Zap, Shield, Activity } from "lucide-react";
 import Image from "next/image";
 
@@ -74,6 +76,12 @@ export default function Home() {
             </span>
           </div>
         </div>
+
+        {/* Voting Power Stats */}
+        <VotingPowerDisplay />
+
+        {/* Delegate Section */}
+        <DelegateButton />
 
         {/* Agent Status */}
         <div className="mb-8">

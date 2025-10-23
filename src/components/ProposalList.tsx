@@ -10,7 +10,8 @@ function formatVotes(votes: string | undefined): string {
   try {
     const num = BigInt(votes);
     // COMP has 18 decimals, so divide by 10^18
-    const compVotes = Number(num) / 1e18;
+    // Use BigInt division to preserve precision for large numbers
+    const compVotes = Number(num / BigInt(1e18));
     
     if (compVotes >= 1000000) {
       return `${(compVotes / 1000000).toFixed(2)}M`;
