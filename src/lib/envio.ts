@@ -16,10 +16,10 @@ let Query: any;
 const loadHyperSyncClient = async () => {
   if (!HypersyncClient) {
     try {
-      const module = await import("@envio-dev/hypersync-client");
-      HypersyncClient = module.HypersyncClient;
-      Decoder = module.Decoder;
-      Query = module.Query;
+      const hyperSyncModule = await import("@envio-dev/hypersync-client");
+      HypersyncClient = hyperSyncModule.HypersyncClient;
+      Decoder = hyperSyncModule.Decoder;
+      Query = hyperSyncModule.Query;
     } catch (error) {
       console.warn("HyperSync client not available, using mock data");
       return false;
