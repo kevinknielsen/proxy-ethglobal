@@ -12,13 +12,13 @@ export default function Home() {
         <div className="mb-12 text-center relative">
           {/* Logo and Title */}
           <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-2xl glow-effect">
+            <div className="relative w-20 h-20 flex items-center justify-center">
               <Image 
-                src="/logos/proxy.jpg" 
+                src="/logos/PROXYNEWICON.png" 
                 alt="Proxy Logo" 
                 width={80} 
                 height={80}
-                className="object-cover"
+                className="object-contain glow-effect"
                 priority
               />
             </div>

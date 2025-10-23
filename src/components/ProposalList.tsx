@@ -4,6 +4,25 @@ import { useEffect, useState } from "react";
 import { FileText, Users, Calendar, TrendingUp } from "lucide-react";
 import { Proposal, ProposalState } from "@/types/governance";
 
+// Format large vote numbers (in wei) to readable format
+function formatVotes(votes: string | undefined): string {
+  if (!votes) return "0";
+  try {
+    const num = BigInt(votes);
+    // COMP has 18 decimals, so divide by 10^18
+    const compVotes = Number(num) / 1e18;
+    
+    if (compVotes >= 1000000) {
+      return `${(compVotes / 1000000).toFixed(2)}M`;
+    } else if (compVotes >= 1000) {
+      return `${(compVotes / 1000).toFixed(2)}K`;
+    }
+    return compVotes.toFixed(2);
+  } catch {
+    return "0";
+  }
+}
+
 export default function ProposalList() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,7 +181,7 @@ export default function ProposalList() {
                 <div>
                   <p className="text-xs text-gray-500">For Votes</p>
                   <p className="text-sm font-semibold text-green-600">
-                    {proposal.forVotes.toString()}
+                    {formatVotes(proposal.forVotes.toString())} COMP
                   </p>
                 </div>
               </div>
@@ -174,7 +193,7 @@ export default function ProposalList() {
                 <div>
                   <p className="text-xs text-gray-500">Against Votes</p>
                   <p className="text-sm font-semibold text-red-600">
-                    {proposal.againstVotes.toString()}
+                    {formatVotes(proposal.againstVotes.toString())} COMP
                   </p>
                 </div>
               </div>

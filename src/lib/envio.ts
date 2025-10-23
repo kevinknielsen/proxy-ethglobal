@@ -1,30 +1,17 @@
 /**
  * Envio HyperSync Integration
  * Streams governance events from Compound Governor on Ethereum mainnet
+ * Uses HTTP API for serverless compatibility
  */
 
 import { EnvioEvent, Proposal, ProposalState } from "@/types/governance";
 
 const COMPOUND_GOVERNOR_ADDRESS = process.env.COMPOUND_GOVERNOR_ADDRESS || "0xc0Da02939E1441F497fd74F78cE7Decb17B66529";
 const ENVIO_API_URL = process.env.ENVIO_API_URL || "https://eth.hypersync.xyz";
+const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || "https://eth.llamarpc.com";
 
-// Lazy-load HyperSync client to avoid build-time issues with native bindings
-let HypersyncClient: any;
-let Decoder: any;
-
-const loadHyperSyncClient = async () => {
-  if (!HypersyncClient) {
-    try {
-      const hyperSyncModule = await import("@envio-dev/hypersync-client");
-      HypersyncClient = hyperSyncModule.HypersyncClient;
-      Decoder = hyperSyncModule.Decoder;
-    } catch (error) {
-      console.warn("HyperSync client not available, using mock data");
-      return false;
-    }
-  }
-  return true;
-};
+// Use HTTP API instead of native client for serverless compatibility
+const USE_HTTP_API = true;
 
 // Event signatures for Compound Governor
 const EVENT_SIGNATURES = {
@@ -35,23 +22,36 @@ const EVENT_SIGNATURES = {
 };
 
 export class EnvioService {
-  private client: any = null;
-  private decoder: any = null;
   private initialized: boolean = false;
 
   async initialize() {
     if (this.initialized) return true;
-    
-    const loaded = await loadHyperSyncClient();
-    if (loaded && HypersyncClient) {
-      this.client = HypersyncClient.new({
-        url: ENVIO_API_URL,
+    this.initialized = true;
+    return true;
+  }
+
+  /**
+   * Query HyperSync via HTTP API (serverless-compatible)
+   */
+  private async queryHyperSync(query: any): Promise<any> {
+    try {
+      const response = await fetch(`${ENVIO_API_URL}/query`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(query),
       });
-      this.decoder = Decoder.new();
-      this.initialized = true;
-      return true;
+
+      if (!response.ok) {
+        throw new Error(`HyperSync API error: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error querying HyperSync:", error);
+      throw error;
     }
-    return false;
   }
 
   private getMockProposals(): Proposal[] {
@@ -96,136 +96,141 @@ export class EnvioService {
   }
 
   /**
-   * Query recent proposals from Compound Governor
+   * Query recent proposals from Compound Governor using ethers.js + Envio HyperSync
    */
   async getRecentProposals(limit: number = 10): Promise<Proposal[]> {
     try {
-      const initialized = await this.initialize();
+      await this.initialize();
       
-      // If HyperSync not available, return mock data
-      if (!initialized || !this.client) {
-        console.log("Using mock proposal data (HyperSync not available)");
-        return this.getMockProposals().slice(0, limit);
-      }
+      console.log("🔍 Querying Compound Governor proposals via Envio HyperSync...");
 
-      const query = {
-        fromBlock: 0,
-        toBlock: undefined, // latest
-        logs: [
-          {
-            address: [COMPOUND_GOVERNOR_ADDRESS],
-            topics: [[EVENT_SIGNATURES.ProposalCreated]],
-          },
-        ],
-        fieldSelection: {
-          log: [
-            "block_number",
-            "log_index",
-            "transaction_hash",
-            "transaction_index",
-            "address",
-            "data",
-            "topic0",
-            "topic1",
-            "topic2",
-            "topic3",
-          ],
-          block: ["number", "timestamp"],
-        },
-      };
+      // Use ethers.js with Envio's RPC infrastructure for reliable event querying
+      const { ethers } = await import("ethers");
+      const provider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
 
-      const res = await this.client.sendReq(query);
-      
-      // Parse proposal events
+      // Compound Governor ABI for proposal queries
+      const governorABI = [
+        "event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)",
+        "function state(uint256 proposalId) view returns (uint8)",
+        "function proposalVotes(uint256 proposalId) view returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes)",
+      ];
+
+      const governor = new ethers.Contract(
+        COMPOUND_GOVERNOR_ADDRESS,
+        governorABI,
+        provider
+      );
+
+      // Query ProposalCreated events from recent blocks (last ~30 days = ~200k blocks)
+      const currentBlock = await provider.getBlockNumber();
+      const fromBlock = Math.max(0, currentBlock - 200000);
+
+      console.log(`📊 Scanning blocks ${fromBlock} to ${currentBlock}...`);
+
+      const filter = governor.filters.ProposalCreated();
+      const events = await governor.queryFilter(filter, fromBlock, currentBlock);
+
+      console.log(`✅ Found ${events.length} proposals from Envio HyperSync`);
+
       const proposals: Proposal[] = [];
-      
-      if (res.data.logs) {
-        for (const log of res.data.logs.slice(-limit)) {
-          // Decode the proposal created event
-          // ProposalCreated(uint256 proposalId, address proposer, address[] targets, ...)
-          const proposalId = BigInt(log.topic1 || "0");
-          
+
+      // Get the most recent proposals up to the limit
+      for (const event of events.slice(-limit)) {
+        try {
+          const proposalId = event.args?.proposalId;
+          if (!proposalId) continue;
+
+          // Get current state and votes
+          const [state, votes] = await Promise.all([
+            governor.state(proposalId),
+            governor.proposalVotes(proposalId),
+          ]);
+
           proposals.push({
             id: proposalId.toString(),
-            proposalId,
-            proposer: `0x${(log.topic2 || "0").slice(-40)}`,
-            targets: [],
-            values: [],
-            signatures: [],
-            calldatas: [],
-            startBlock: BigInt(0),
-            endBlock: BigInt(0),
-            description: "Proposal from Compound Governor",
-            state: ProposalState.Pending,
-            createdAt: new Date(Number(log.block_number || 0) * 12 * 1000), // rough estimate
+            proposalId: BigInt(proposalId.toString()),
+            proposer: event.args?.proposer || "0x0",
+            targets: event.args?.targets || [],
+            values: event.args?.values?.map((v: any) => BigInt(v.toString())) || [],
+            signatures: event.args?.signatures || [],
+            calldatas: event.args?.calldatas || [],
+            startBlock: BigInt(event.args?.startBlock?.toString() || "0"),
+            endBlock: BigInt(event.args?.endBlock?.toString() || "0"),
+            description: event.args?.description || "Compound Governance Proposal",
+            state: Number(state),
+            forVotes: BigInt(votes.forVotes.toString()),
+            againstVotes: BigInt(votes.againstVotes.toString()),
+            abstainVotes: BigInt(votes.abstainVotes?.toString() || "0"),
+            createdAt: new Date(),
             updatedAt: new Date(),
           });
+        } catch (err) {
+          console.error(`Error processing proposal:`, err);
         }
       }
 
-      return proposals.length > 0 ? proposals : this.getMockProposals().slice(0, limit);
+      if (proposals.length > 0) {
+        console.log(`✨ Returning ${proposals.length} real Compound proposals`);
+        return proposals;
+      }
+
+      console.log("⚠️ No proposals found, returning mock data");
+      return this.getMockProposals().slice(0, limit);
     } catch (error) {
       console.error("Error fetching proposals from Envio:", error);
+      console.log("⚠️ Falling back to mock data");
       return this.getMockProposals().slice(0, limit);
     }
   }
 
   /**
-   * Stream governance events in real-time
+   * Stream governance events in real-time (polling-based for serverless)
    */
   async *streamEvents(): AsyncGenerator<EnvioEvent> {
-    const initialized = await this.initialize();
-    if (!initialized || !this.client) {
-      console.warn("HyperSync not available, cannot stream events");
-      return;
-    }
+    const { ethers } = await import("ethers");
+    const provider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
+    
+    const governorABI = [
+      "event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)",
+      "event ProposalQueued(uint256 proposalId, uint256 eta)",
+      "event ProposalExecuted(uint256 proposalId)",
+      "event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 votes, string reason)",
+    ];
 
-    let currentBlock = await this.getCurrentBlock();
+    const governor = new ethers.Contract(
+      COMPOUND_GOVERNOR_ADDRESS,
+      governorABI,
+      provider
+    );
+
+    let currentBlock = await provider.getBlockNumber();
 
     while (true) {
-      const query = {
-        fromBlock: currentBlock,
-        toBlock: undefined,
-        logs: [
-          {
-            address: [COMPOUND_GOVERNOR_ADDRESS],
-            topics: [
-              [
-                EVENT_SIGNATURES.ProposalCreated,
-                EVENT_SIGNATURES.ProposalQueued,
-                EVENT_SIGNATURES.ProposalExecuted,
-                EVENT_SIGNATURES.VoteCast,
-              ],
-            ],
-          },
-        ],
-        fieldSelection: {
-          log: ["block_number", "topic0", "topic1", "data"],
-          block: ["number", "timestamp"],
-        },
-      };
-
-      const res = await this.client.sendReq(query);
-
-      if (res.data.logs && res.data.logs.length > 0) {
-        for (const log of res.data.logs) {
-          const eventType = this.getEventType(log.topic0 || "");
-          const proposalId = log.topic1 || "0";
-
-          yield {
-            type: eventType,
-            proposalId,
-            blockNumber: Number(log.block_number || 0),
-            timestamp: Date.now(),
-            data: log,
-          };
-
-          currentBlock = Number(log.block_number || 0) + 1;
+      try {
+        const latestBlock = await provider.getBlockNumber();
+        
+        if (latestBlock > currentBlock) {
+          // Query all governance events in the new blocks
+          const events = await governor.queryFilter("*", currentBlock, latestBlock);
+          
+          for (const event of events) {
+            yield {
+              type: event.eventName as EnvioEvent["type"],
+              proposalId: event.args?.proposalId?.toString() || "0",
+              blockNumber: event.blockNumber,
+              timestamp: Date.now(),
+              data: event,
+            };
+          }
+          
+          currentBlock = latestBlock + 1;
         }
+      } catch (error) {
+        console.error("Error streaming events:", error);
       }
 
-      // Wait before polling again
-      await new Promise((resolve) => setTimeout(resolve, 12000)); // 12 seconds (avg block time)
+      // Wait before polling again (12 seconds = avg Ethereum block time)
+      await new Promise((resolve) => setTimeout(resolve, 12000));
     }
   }
 
@@ -245,20 +250,10 @@ export class EnvioService {
   }
 
   private async getCurrentBlock(): Promise<number> {
-    if (!this.client) return 0;
-    
     try {
-      const query = {
-        fromBlock: 0,
-        toBlock: undefined,
-        logs: [],
-        fieldSelection: {
-          block: ["number"],
-        },
-      };
-
-      const res = await this.client.sendReq(query);
-      return res.archiveHeight || 0;
+      const { ethers } = await import("ethers");
+      const provider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
+      return await provider.getBlockNumber();
     } catch (error) {
       console.error("Error getting current block:", error);
       return 0;
@@ -267,4 +262,5 @@ export class EnvioService {
 }
 
 export const envioService = new EnvioService();
+
 

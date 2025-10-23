@@ -63,13 +63,13 @@ export default function AgentStatus() {
     <div className="card-gradient rounded-xl p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full overflow-hidden glow-effect">
+          <div className="w-12 h-12 flex items-center justify-center">
             <Image 
-              src="/logos/proxy.jpg" 
+              src="/logos/PROXYNEWICON.png" 
               alt="Proxy" 
               width={48} 
               height={48}
-              className="object-cover"
+              className="object-contain glow-effect"
             />
           </div>
           <div>
