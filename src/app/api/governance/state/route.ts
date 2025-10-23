@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { litService } from "@/lib/lit";
 import { ProposalState } from "@/types/governance";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;

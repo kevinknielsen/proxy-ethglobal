@@ -11,7 +11,6 @@ const ENVIO_API_URL = process.env.ENVIO_API_URL || "https://eth.hypersync.xyz";
 // Lazy-load HyperSync client to avoid build-time issues with native bindings
 let HypersyncClient: any;
 let Decoder: any;
-let Query: any;
 
 const loadHyperSyncClient = async () => {
   if (!HypersyncClient) {
@@ -19,7 +18,6 @@ const loadHyperSyncClient = async () => {
       const hyperSyncModule = await import("@envio-dev/hypersync-client");
       HypersyncClient = hyperSyncModule.HypersyncClient;
       Decoder = hyperSyncModule.Decoder;
-      Query = hyperSyncModule.Query;
     } catch (error) {
       console.warn("HyperSync client not available, using mock data");
       return false;
