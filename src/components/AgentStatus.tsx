@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, Zap, Eye, CheckCircle } from "lucide-react";
+import { Zap, Eye, CheckCircle } from "lucide-react";
+import Image from "next/image";
 
 interface AgentStatusData {
   agent: {
@@ -62,11 +63,17 @@ export default function AgentStatus() {
     <div className="card-gradient rounded-xl p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-            <Activity className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 rounded-full overflow-hidden glow-effect">
+            <Image 
+              src="/logos/proxy.jpg" 
+              alt="Proxy" 
+              width={48} 
+              height={48}
+              className="object-cover"
+            />
           </div>
           <div>
-            <h2 className="text-2xl font-bold">{status.agent.name}</h2>
+            <h2 className="text-2xl font-bold text-white">{status.agent.name}</h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="status-badge status-active">
                 {status.agent.status}
@@ -86,14 +93,14 @@ export default function AgentStatus() {
       </div>
 
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-primary" />
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-white">
+          <Zap className="w-5 h-5" />
           Capabilities
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {status.capabilities.map((capability, idx) => (
-            <div key={idx} className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-secondary" />
+            <div key={idx} className="flex items-center gap-2 text-sm text-gray-300">
+              <CheckCircle className="w-4 h-4 text-white" />
               <span>{capability}</span>
             </div>
           ))}
@@ -101,28 +108,28 @@ export default function AgentStatus() {
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Eye className="w-5 h-5 text-primary" />
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-white">
+          <Eye className="w-5 h-5" />
           Partner Integrations
         </h3>
         <div className="space-y-3">
           {Object.entries(status.integrations).map(([key, value]) => (
             <div
               key={key}
-              className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg"
+              className="flex items-center justify-between p-3 bg-dark/50 border border-white/10 rounded-lg hover:border-white/20 transition-all"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold uppercase">
+                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                  <span className="text-darker text-xs font-bold uppercase">
                     {key.slice(0, 2)}
                   </span>
                 </div>
                 <div>
-                  <p className="font-medium capitalize">{key}</p>
-                  <p className="text-sm text-gray-500">{value}</p>
+                  <p className="font-medium capitalize text-gray-200">{key}</p>
+                  <p className="text-sm text-gray-400">{value}</p>
                 </div>
               </div>
-              <CheckCircle className="w-5 h-5 text-secondary" />
+              <CheckCircle className="w-5 h-5 text-white" />
             </div>
           ))}
         </div>

@@ -51,10 +51,10 @@ export default function TransactionHistory() {
   return (
     <div className="card-gradient rounded-xl p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Transaction History</h2>
+        <h2 className="text-2xl font-bold text-white">Transaction History</h2>
         <button
           onClick={fetchTransactions}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
+          className="px-4 py-2 bg-white text-darker font-semibold rounded-lg hover:shadow-lg hover:shadow-white/20 transition-all text-sm"
         >
           Refresh
         </button>
@@ -73,7 +73,7 @@ export default function TransactionHistory() {
           {transactions.map((tx) => (
             <div
               key={tx.hash}
-              className="bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-md transition-shadow"
+              className="bg-dark/50 border border-white/10 rounded-lg p-4 hover:border-white/20 transition-all"
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
@@ -93,7 +93,7 @@ export default function TransactionHistory() {
                   href={`https://eth.blockscout.com/tx/${tx.hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-primary hover:text-primary/80 text-sm"
+                  className="flex items-center gap-1 text-white hover:text-gray-300 text-sm font-semibold"
                 >
                   View
                   <ExternalLink className="w-4 h-4" />

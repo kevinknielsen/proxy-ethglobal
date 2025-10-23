@@ -490,7 +490,7 @@ MIT License - see LICENSE file for details
 
 ## 🙏 Acknowledgments
 
-Built with ❤️ for ETHGlobal Bangkok 2024 using:
+Built with ❤️ for ETHGlobal 2025 using:
 - [Virtuals](https://www.virtuals.io/)
 - [Envio](https://envio.dev/)
 - [Lit Protocol](https://litprotocol.com/)

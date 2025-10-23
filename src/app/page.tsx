@@ -1,44 +1,76 @@
 import AgentStatus from "@/components/AgentStatus";
 import ProposalList from "@/components/ProposalList";
 import TransactionHistory from "@/components/TransactionHistory";
-import { Bot } from "lucide-react";
+import { Zap, Shield, Activity } from "lucide-react";
+import Image from "next/image";
 
 export default function Home() {
   return (
-    <main className="min-h-screen p-8 bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <main className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-12 text-center">
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center shadow-lg">
-              <Bot className="w-10 h-10 text-white" />
+        <div className="mb-12 text-center relative">
+          {/* Logo and Title */}
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-2xl glow-effect">
+              <Image 
+                src="/logos/proxy.jpg" 
+                alt="Proxy Logo" 
+                width={80} 
+                height={80}
+                className="object-cover"
+                priority
+              />
             </div>
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <h1 className="text-6xl font-bold text-white">
               Proxy
             </h1>
           </div>
-          <p className="text-xl text-gray-600 dark:text-gray-400 mb-2">
-            The Delegated Governance Executor
+          
+          <p className="text-2xl text-white font-semibold mb-3 flex items-center justify-center gap-2">
+            The Delegated Governance Executor for
+            <Image 
+              src="/logos/unnamed.png" 
+              alt="Compound" 
+              width={90} 
+              height={24}
+              className="object-contain inline-block"
+            />
           </p>
-          <p className="text-sm text-gray-500 max-w-2xl mx-auto">
-            An autonomous agent on Virtuals that monitors Compound Governor,
-            analyzes proposals, and executes governance actions using delegated
-            authority via Lit Protocol
+          <p className="text-base text-gray-400 max-w-2xl mx-auto mb-8">
+            An autonomous agent that monitors Compound Governor, analyzes proposals,
+            and executes governance actions using non-custodial delegated authority
           </p>
 
+          {/* Key Features */}
+          <div className="flex items-center justify-center gap-6 mb-8">
+            <div className="flex items-center gap-2 text-sm">
+              <Zap className="w-4 h-4 text-white" />
+              <span className="text-gray-300">Real-time Monitoring</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Shield className="w-4 h-4 text-white" />
+              <span className="text-gray-300">Non-custodial</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Activity className="w-4 h-4 text-white" />
+              <span className="text-gray-300">Autonomous Execution</span>
+            </div>
+          </div>
+
           {/* Partner Badges */}
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded-full text-xs font-semibold">
-              Virtuals
+          <div className="flex items-center justify-center flex-wrap gap-3 mt-6">
+            <span className="px-4 py-2 bg-white/5 text-white border border-white/20 rounded-full text-xs font-semibold backdrop-blur-sm hover:bg-white/10 transition-all">
+              🌐 Envio HyperSync
             </span>
-            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-xs font-semibold">
-              Envio HyperSync
+            <span className="px-4 py-2 bg-white/5 text-white border border-white/20 rounded-full text-xs font-semibold backdrop-blur-sm hover:bg-white/10 transition-all">
+              🔒 Lit Protocol
             </span>
-            <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-xs font-semibold">
-              Lit Protocol
+            <span className="px-4 py-2 bg-white/5 text-white border border-white/20 rounded-full text-xs font-semibold backdrop-blur-sm hover:bg-white/10 transition-all">
+              🔍 BlockScout
             </span>
-            <span className="px-3 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-full text-xs font-semibold">
-              BlockScout
+            <span className="px-4 py-2 bg-white/5 text-white border border-white/20 rounded-full text-xs font-semibold backdrop-blur-sm hover:bg-white/10 transition-all">
+              🤖 Virtuals
             </span>
           </div>
         </div>
@@ -62,13 +94,15 @@ export default function Home() {
         </div>
 
         {/* Footer */}
-        <div className="mt-12 text-center text-sm text-gray-500">
-          <p className="mb-2">
-            Built for ETHGlobal Bangkok 2024 🇹🇭
-          </p>
-          <p>
-            Powered by Virtuals • Envio • Lit Protocol • BlockScout
-          </p>
+        <div className="mt-16 text-center">
+          <div className="inline-block card-gradient rounded-2xl px-8 py-6 mb-4">
+            <p className="text-white font-semibold mb-2">
+              Built for ETHGlobal 2025
+            </p>
+            <p className="text-sm text-gray-400">
+              Powered by Envio • Lit Protocol • BlockScout • Virtuals
+            </p>
+          </div>
         </div>
       </div>
     </main>

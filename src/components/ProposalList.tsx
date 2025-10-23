@@ -108,10 +108,10 @@ export default function ProposalList() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Active Proposals</h2>
+        <h2 className="text-2xl font-bold text-white">Active Proposals</h2>
         <button
           onClick={fetchProposals}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+          className="px-4 py-2 bg-white text-darker font-semibold rounded-lg hover:shadow-lg hover:shadow-white/20 transition-all"
         >
           Refresh
         </button>
@@ -185,7 +185,7 @@ export default function ProposalList() {
             {proposal.state === ProposalState.Active && (
               <button
                 onClick={() => handleAction(proposal.id, "vote")}
-                className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-colors text-sm"
+                className="px-4 py-2 bg-white text-darker font-semibold rounded-lg hover:shadow-lg hover:shadow-white/20 transition-all text-sm"
               >
                 Vote FOR
               </button>
@@ -193,7 +193,7 @@ export default function ProposalList() {
             {proposal.state === ProposalState.Succeeded && (
               <button
                 onClick={() => handleAction(proposal.id, "queue")}
-                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm"
+                className="px-4 py-2 bg-gray-200 text-darker font-semibold rounded-lg hover:shadow-lg hover:shadow-gray-200/20 transition-all text-sm"
               >
                 Queue
               </button>
@@ -201,7 +201,7 @@ export default function ProposalList() {
             {proposal.state === ProposalState.Queued && (
               <button
                 onClick={() => handleAction(proposal.id, "execute")}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
+                className="px-4 py-2 bg-gray-300 text-darker font-semibold rounded-lg hover:shadow-lg hover:shadow-gray-300/20 transition-all text-sm"
               >
                 Execute
               </button>
