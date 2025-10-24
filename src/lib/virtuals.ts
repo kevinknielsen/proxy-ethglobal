@@ -148,12 +148,21 @@ export class VirtualsService {
     name: string;
     status: string;
     lastActive: string;
+    walletAddress: string;
+    platform: string;
+    virtualsUrl: string;
   }> {
+    const agentId = this.agentId || "15865";
+    const walletAddress = process.env.NEXT_PUBLIC_PROXY_AGENT_ADDRESS || "0xA736A27F53ADB6536C20f81D254Fa6cDfd79B37a";
+    
     return {
-      id: this.agentId,
-      name: "Proxy",
+      id: agentId,
+      name: "Proxy Governance Agent",
       status: "active",
       lastActive: new Date().toISOString(),
+      walletAddress,
+      platform: "Virtuals Protocol (Base)",
+      virtualsUrl: `https://app.virtuals.io/virtuals/${agentId}`,
     };
   }
 }

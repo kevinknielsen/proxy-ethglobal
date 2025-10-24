@@ -7,8 +7,8 @@
 import { EnvioEvent, Proposal, ProposalState } from "@/types/governance";
 import { ethers } from "ethers";
 
-// Compound Governor Bravo on Ethereum Mainnet
-const COMPOUND_GOVERNOR_ADDRESS = process.env.COMPOUND_GOVERNOR_ADDRESS || "0xc0Da02939E1441F497fd74F78cE7Decb17B66529";
+// Compound Governor on Ethereum Mainnet
+const COMPOUND_GOVERNOR_ADDRESS = process.env.COMPOUND_GOVERNOR_ADDRESS || "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0";
 const ENVIO_API_URL = process.env.ENVIO_API_URL || "https://eth.hypersync.xyz";
 const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL || "https://rpc.ankr.com/eth";
 
@@ -101,13 +101,14 @@ export class EnvioService {
       
       console.log("🔍 Querying Compound Governor proposals via Envio HyperRPC...");
 
-      // Use Envio HyperRPC - optimized RPC endpoint
-      const provider = new ethers.JsonRpcProvider("https://eth.rpc.hypersync.xyz");
+      // Use Envio HyperRPC for events (fast!), public RPC for state queries
+      const eventProvider = new ethers.JsonRpcProvider("https://eth.rpc.hypersync.xyz");
+      const stateProvider = new ethers.JsonRpcProvider("https://ethereum-rpc.publicnode.com");
       
-      const currentBlock = await provider.getBlockNumber();
+      const currentBlock = await eventProvider.getBlockNumber();
       const fromBlock = Math.max(0, currentBlock - 50000); // Last ~7 days
 
-      console.log(`📊 Using Envio HyperRPC to query blocks ${fromBlock} to ${currentBlock}...`);
+      console.log(`📊 Using Envio HyperRPC to query events from blocks ${fromBlock} to ${currentBlock}...`);
 
       const governorABI = [
         "event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 startBlock, uint256 endBlock, string description)",
@@ -115,10 +116,18 @@ export class EnvioService {
         "function proposalVotes(uint256 proposalId) view returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes)",
       ];
 
+      // Envio HyperRPC for events
       const governor = new ethers.Contract(
         COMPOUND_GOVERNOR_ADDRESS,
         governorABI,
-        provider
+        eventProvider
+      );
+      
+      // Cloudflare RPC for state queries (eth_call support)
+      const governorForState = new ethers.Contract(
+        COMPOUND_GOVERNOR_ADDRESS,
+        governorABI,
+        stateProvider
       );
 
       const filter = governor.filters.ProposalCreated();
@@ -140,14 +149,14 @@ export class EnvioService {
           const proposalId = event.args?.proposalId;
           if (!proposalId) continue;
 
-          // Get current state and votes with error handling
+          // Get current state and votes from Cloudflare RPC
           const [state, votes] = await Promise.all([
-            governor.state(proposalId).catch(err => {
-              console.warn(`Failed to fetch state for proposal ${proposalId}:`, err);
-              return 0; // Default to Pending state
+            governorForState.state(proposalId).catch(err => {
+              console.warn(`Failed to fetch state for proposal ${proposalId}:`, err.message);
+              return 1; // Default to Active state for demo
             }),
-            governor.proposalVotes(proposalId).catch(err => {
-              console.warn(`Failed to fetch votes for proposal ${proposalId}:`, err);
+            governorForState.proposalVotes(proposalId).catch(err => {
+              console.warn(`Failed to fetch votes for proposal ${proposalId}:`, err.message);
               return { forVotes: 0n, againstVotes: 0n, abstainVotes: 0n };
             }),
           ]);

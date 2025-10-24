@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     if (!address) {
       // Return governance activity for Compound Governor
-      const governorAddress = process.env.COMPOUND_GOVERNOR_ADDRESS!;
+      const governorAddress = process.env.COMPOUND_GOVERNOR_ADDRESS || "0x309a862bbC1A00e45506cB8A802D1ff10004c8C0";
       const transactions = await blockScoutService.getGovernanceActivity(
         governorAddress,
         limit

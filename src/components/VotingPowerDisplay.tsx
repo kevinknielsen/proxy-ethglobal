@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { TrendingUp, Users, Zap } from "lucide-react";
 
 const COMP_TOKEN_ADDRESS = "0xc00e94Cb662C3520282E6f5717214004A7f26888";
-const PROXY_AGENT_ADDRESS = process.env.NEXT_PUBLIC_PROXY_AGENT_ADDRESS || "0x0000000000000000000000000000000000000000";
+const PROXY_AGENT_ADDRESS = process.env.NEXT_PUBLIC_PROXY_AGENT_ADDRESS || "0xA736A27F53ADB6536C20f81D254Fa6cDfd79B37a";
 
 export default function VotingPowerDisplay() {
   const [votingPower, setVotingPower] = useState<string>("0");
@@ -13,9 +13,22 @@ export default function VotingPowerDisplay() {
 
   useEffect(() => {
     fetchVotingPower();
+    
     // Refresh every 30 seconds
     const interval = setInterval(fetchVotingPower, 30000);
-    return () => clearInterval(interval);
+    
+    // Listen for delegation events
+    const handleDelegationUpdate = () => {
+      console.log("📊 Delegation updated, refreshing voting power...");
+      fetchVotingPower();
+    };
+    
+    window.addEventListener("delegation-updated", handleDelegationUpdate);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("delegation-updated", handleDelegationUpdate);
+    };
   }, []);
 
   const fetchVotingPower = async () => {

@@ -1,62 +1,107 @@
 "use client";
 
-import { useState } from "react";
-import { Shield, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Shield, ExternalLink, Wallet } from "lucide-react";
 
 const COMP_TOKEN_ADDRESS = "0xc00e94Cb662C3520282E6f5717214004A7f26888";
-const PROXY_AGENT_ADDRESS = process.env.NEXT_PUBLIC_PROXY_AGENT_ADDRESS || "0x0000000000000000000000000000000000000000";
+const PROXY_AGENT_ADDRESS = process.env.NEXT_PUBLIC_PROXY_AGENT_ADDRESS || "0xA736A27F53ADB6536C20f81D254Fa6cDfd79B37a";
 
 export default function DelegateButton() {
   const [delegating, setDelegating] = useState(false);
   const [delegated, setDelegated] = useState(false);
+  const [txHash, setTxHash] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
+  const [compBalance, setCompBalance] = useState("0");
+  const [connected, setConnected] = useState(false);
 
-  const handleDelegate = async () => {
+  useEffect(() => {
+    // Check if already delegated (from localStorage)
+    const savedDelegation = localStorage.getItem("proxy_delegation");
+    if (savedDelegation) {
+      const data = JSON.parse(savedDelegation);
+      setDelegated(true);
+      setTxHash(data.txHash);
+      setWalletAddress(data.address);
+    }
+  }, []);
+
+  const connectWallet = async () => {
     try {
-      setDelegating(true);
-
-      // Check if MetaMask is installed
       if (!window.ethereum) {
         alert("Please install MetaMask to delegate your COMP voting power!");
         return;
       }
 
-      // Request account access
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
-      const userAddress = accounts[0];
+      const address = accounts[0];
+      setWalletAddress(address);
+      setConnected(true);
 
-      // COMP token ABI for delegation
-      const compABI = [
-        {
-          constant: false,
-          inputs: [{ name: "delegatee", type: "address" }],
-          name: "delegate",
-          outputs: [],
-          type: "function",
-        },
-      ];
+      // Get COMP balance
+      const { ethers } = await import("ethers");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const compContract = new ethers.Contract(
+        COMP_TOKEN_ADDRESS,
+        ["function balanceOf(address) view returns (uint256)"],
+        provider
+      );
+      
+      const balance = await compContract.balanceOf(address);
+      const formattedBalance = ethers.formatUnits(balance, 18);
+      setCompBalance(parseFloat(formattedBalance).toFixed(4));
+      
+      console.log(`Connected: ${address}, COMP Balance: ${formattedBalance}`);
+    } catch (error) {
+      console.error("Connection error:", error);
+      alert("Failed to connect wallet");
+    }
+  };
 
-      // Encode the delegate function call
-      const web3 = await import("web3");
-      const contract = new web3.default.eth.Contract(compABI as any, COMP_TOKEN_ADDRESS);
-      const data = contract.methods.delegate(PROXY_AGENT_ADDRESS).encodeABI();
+  const handleDelegate = async () => {
+    try {
+      setDelegating(true);
 
-      // Send transaction
-      const txHash = await window.ethereum.request({
-        method: "eth_sendTransaction",
-        params: [
-          {
-            from: userAddress,
-            to: COMP_TOKEN_ADDRESS,
-            data: data,
-          },
-        ],
-      });
+      if (!connected || !walletAddress) {
+        await connectWallet();
+        return;
+      }
 
-      console.log("Delegation transaction sent:", txHash);
-      alert(`Delegation successful! Tx: ${txHash}`);
+      console.log(`🔗 Delegating COMP voting power to Proxy agent: ${PROXY_AGENT_ADDRESS}`);
+
+      const { ethers } = await import("ethers");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      // COMP token contract
+      const compContract = new ethers.Contract(
+        COMP_TOKEN_ADDRESS,
+        ["function delegate(address delegatee) external"],
+        signer
+      );
+
+      // Send delegation transaction
+      const tx = await compContract.delegate(PROXY_AGENT_ADDRESS);
+      console.log("Transaction sent:", tx.hash);
+      
+      // Wait for confirmation
+      await tx.wait();
+      console.log("✅ Delegation confirmed!");
+
+      setTxHash(tx.hash);
       setDelegated(true);
+
+      // Save to localStorage to persist across refreshes
+      localStorage.setItem("proxy_delegation", JSON.stringify({
+        txHash: tx.hash,
+        address: walletAddress,
+        timestamp: Date.now(),
+      }));
+
+      // Trigger voting power refresh
+      window.dispatchEvent(new Event("delegation-updated"));
+      
     } catch (error) {
       console.error("Delegation error:", error);
       alert(`Error: ${error instanceof Error ? error.message : "Failed to delegate"}`);
@@ -78,6 +123,23 @@ export default function DelegateButton() {
           and Proxy votes on your behalf using Lit Protocol's non-custodial execution.
         </p>
 
+        {connected && (
+          <div className="mb-6 bg-white/5 border border-white/10 rounded-lg p-4 inline-block">
+            <div className="flex items-center gap-3">
+              <Wallet className="w-5 h-5 text-white" />
+              <div className="text-left">
+                <p className="text-xs text-gray-400">Connected Wallet</p>
+                <p className="text-sm font-mono text-white">
+                  {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  COMP Balance: <span className="text-white font-semibold">{compBalance}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-center gap-4 mb-6">
           <div className="text-left">
             <p className="text-xs text-gray-500">Proxy Agent Address</p>
@@ -98,18 +160,40 @@ export default function DelegateButton() {
         {delegated ? (
           <div className="bg-white/10 border border-white/20 rounded-lg px-6 py-4 inline-block">
             <p className="text-white font-semibold">✅ Successfully Delegated!</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Proxy can now vote with your COMP power
+            <p className="text-sm text-gray-400 mt-2">
+              Proxy can now vote with your {compBalance} COMP
             </p>
+            <a
+              href={`https://etherscan.io/tx/${txHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-white hover:underline mt-2 inline-flex items-center gap-1"
+            >
+              View on Etherscan <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         ) : (
-          <button
-            onClick={handleDelegate}
-            disabled={delegating}
-            className="px-8 py-3 bg-white text-darker font-semibold rounded-lg hover:shadow-lg hover:shadow-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {delegating ? "Delegating..." : "Delegate to Proxy"}
-          </button>
+          <div className="space-y-3">
+            {!connected ? (
+              <button
+                onClick={connectWallet}
+                className="px-8 py-3 bg-white/10 border border-white/20 text-white font-semibold rounded-lg hover:bg-white/20 transition-all"
+              >
+                <span className="flex items-center gap-2">
+                  <Wallet className="w-5 h-5" />
+                  Connect Wallet
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={handleDelegate}
+                disabled={delegating}
+                className="px-8 py-3 bg-white text-darker font-semibold rounded-lg hover:shadow-lg hover:shadow-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {delegating ? "Delegating..." : "Delegate to Proxy"}
+              </button>
+            )}
+          </div>
         )}
 
         <div className="mt-6 text-xs text-gray-500">

@@ -14,16 +14,17 @@ export async function GET() {
       success: true,
       agent: status,
       capabilities: [
-        "Monitor Compound Governor proposals",
-        "Cast votes on active proposals",
-        "Queue successful proposals",
-        "Execute queued proposals",
+        "Monitor Compound Governor proposals in real-time",
+        "Analyze proposals using AI reasoning",
+        "Cast votes on active proposals via delegated authority",
+        "Queue successful proposals for execution",
+        "Execute queued proposals through Lit Protocol PKP",
       ],
       integrations: {
-        envio: "Connected - Real-time governance events",
-        lit: "Connected - Delegated transaction execution",
-        blockscout: "Connected - Transaction history and verification",
-        virtuals: "Active - Agent runtime on Base",
+        virtuals: "Active - AI agent runtime on Virtuals Protocol (Base network)",
+        envio: "Connected - Real-time governance event streaming via HyperRPC",
+        lit: "Connected - Non-custodial transaction signing via PKP",
+        blockscout: "Connected - Transaction verification on Ethereum mainnet",
       },
     });
   } catch (error) {

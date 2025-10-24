@@ -140,9 +140,19 @@ export class BlockScoutService {
   }
 
   /**
-   * Get governance contract interactions
+   * Get governance contract interactions via BlockScout
    */
   async getGovernanceActivity(
+    governorAddress: string,
+    limit: number = 50
+  ): Promise<BlockScoutTransaction[]> {
+    return this.getGovernanceActivityFromBlockScout(governorAddress, limit);
+  }
+
+  /**
+   * Fallback: Get governance activity from BlockScout API
+   */
+  private async getGovernanceActivityFromBlockScout(
     governorAddress: string,
     limit: number = 50
   ): Promise<BlockScoutTransaction[]> {
@@ -182,7 +192,7 @@ export class BlockScoutService {
 
       return [];
     } catch (error) {
-      console.error("Error fetching governance activity:", error);
+      console.error("Error fetching governance activity from BlockScout:", error);
       return [];
     }
   }
