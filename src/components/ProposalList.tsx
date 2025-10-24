@@ -149,8 +149,10 @@ export default function ProposalList() {
                   {getStateName(proposal.state)}
                 </span>
               </div>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                {proposal.description}
+              <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+                {proposal.description.length > 200 
+                  ? proposal.description.slice(0, 200) + "..." 
+                  : proposal.description}
               </p>
             </div>
           </div>
