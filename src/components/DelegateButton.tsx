@@ -51,20 +51,20 @@ export default function DelegateButton() {
       setWalletAddress(address);
       setConnected(true);
 
-      // Get COMP balance
+      // Get COMP balance (always check Ethereum mainnet)
       const { ethers } = await import("ethers");
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      const mainnetProvider = new ethers.JsonRpcProvider("https://ethereum-rpc.publicnode.com");
       const compContract = new ethers.Contract(
         COMP_TOKEN_ADDRESS,
         ["function balanceOf(address) view returns (uint256)"],
-        provider
+        mainnetProvider
       );
       
       const balance = await compContract.balanceOf(address);
       const formattedBalance = ethers.formatUnits(balance, 18);
       setCompBalance(parseFloat(formattedBalance).toFixed(4));
       
-      console.log(`Connected wallet, COMP Balance: ${formattedBalance}`);
+      console.log(`Connected wallet, COMP Balance on Ethereum mainnet: ${formattedBalance}`);
     } catch (error) {
       console.error("Connection error:", error);
       alert("Failed to connect wallet");
@@ -93,6 +93,29 @@ export default function DelegateButton() {
       }
 
       const provider = new ethers.BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      
+      // Ensure we're on Ethereum mainnet (chainId 1)
+      if (network.chainId !== 1n) {
+        alert(`Please switch to Ethereum Mainnet in MetaMask.\n\nCOMP delegation must be done on Ethereum mainnet (you're on chain ${network.chainId}).`);
+        
+        // Request network switch
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x1' }], // Ethereum mainnet
+          });
+          // Retry after switch
+          await handleDelegate();
+        } catch (switchError: any) {
+          console.error("Network switch error:", switchError);
+          if (switchError.code === 4001) {
+            alert("Please switch to Ethereum Mainnet manually to delegate COMP.");
+          }
+        }
+        return;
+      }
+
       const signer = await provider.getSigner();
 
       // COMP token contract
