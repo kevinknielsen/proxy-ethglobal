@@ -16,12 +16,24 @@ export default function DelegateButton() {
 
   useEffect(() => {
     // Check if already delegated (from localStorage)
-    const savedDelegation = localStorage.getItem("proxy_delegation");
-    if (savedDelegation) {
-      const data = JSON.parse(savedDelegation);
-      setDelegated(true);
-      setTxHash(data.txHash);
-      setWalletAddress(data.address);
+    try {
+      const savedDelegation = localStorage.getItem("proxy_delegation");
+      if (savedDelegation) {
+        const data = JSON.parse(savedDelegation);
+        if (data && data.txHash && data.address) {
+          setDelegated(true);
+          setTxHash(data.txHash);
+          setWalletAddress(data.address);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading saved delegation:", error);
+      // Clear corrupted data
+      try {
+        localStorage.removeItem("proxy_delegation");
+      } catch (e) {
+        // localStorage not available, ignore
+      }
     }
   }, []);
 
@@ -52,7 +64,7 @@ export default function DelegateButton() {
       const formattedBalance = ethers.formatUnits(balance, 18);
       setCompBalance(parseFloat(formattedBalance).toFixed(4));
       
-      console.log(`Connected: ${address}, COMP Balance: ${formattedBalance}`);
+      console.log(`Connected wallet, COMP Balance: ${formattedBalance}`);
     } catch (error) {
       console.error("Connection error:", error);
       alert("Failed to connect wallet");
@@ -68,9 +80,18 @@ export default function DelegateButton() {
         return;
       }
 
-      console.log(`🔗 Delegating COMP voting power to Proxy agent: ${PROXY_AGENT_ADDRESS}`);
+      console.log(`🔗 Delegating COMP voting power to Proxy agent`);
 
       const { ethers } = await import("ethers");
+      
+      // Validate proxy agent address
+      if (!ethers.isAddress(PROXY_AGENT_ADDRESS)) {
+        const error = "Invalid proxy agent address configured";
+        console.error(error, PROXY_AGENT_ADDRESS);
+        alert(`Configuration error: ${error}. Please contact support.`);
+        return;
+      }
+
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 

@@ -94,6 +94,7 @@ export default function AgentStatus() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-white/70 hover:text-white hover:underline flex items-center gap-1"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   >
                     View on Virtuals <ExternalLink className="w-3 h-3" />
                   </a>
@@ -102,13 +103,13 @@ export default function AgentStatus() {
             </div>
           </div>
         </div>
-        <button className="p-2 hover:bg-white/10 rounded-lg transition-all">
+        <span className="p-2 hover:bg-white/10 rounded-lg transition-all" aria-hidden="true">
           {isExpanded ? (
             <ChevronUp className="w-6 h-6 text-white" />
           ) : (
             <ChevronDown className="w-6 h-6 text-white" />
           )}
-        </button>
+        </span>
       </div>
 
       {/* Expandable Content */}
