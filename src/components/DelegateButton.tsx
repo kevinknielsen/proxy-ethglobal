@@ -92,6 +92,11 @@ export default function DelegateButton() {
         return;
       }
 
+      if (!window.ethereum) {
+        alert("Please install MetaMask to delegate your COMP voting power!");
+        return;
+      }
+
       const provider = new ethers.BrowserProvider(window.ethereum);
       const network = await provider.getNetwork();
       
