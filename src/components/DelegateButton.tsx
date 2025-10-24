@@ -164,7 +164,7 @@ export default function DelegateButton() {
 
         <p className="text-gray-400 mb-6 max-w-2xl mx-auto">
           Delegate your COMP voting power to Proxy agent. You keep your tokens,
-          and Proxy votes on your behalf using Lit Protocol's non-custodial execution.
+          and Proxy votes on your behalf using Lit Protocol&apos;s non-custodial execution.
         </p>
 
         {connected && (
