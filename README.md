@@ -2,7 +2,6 @@
 
 <div align="center">
 
-![Proxy Banner](https://img.shields.io/badge/ETHGlobal-Bangkok_2024-purple?style=for-the-badge)
 ![Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
