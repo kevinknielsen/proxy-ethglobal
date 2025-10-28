@@ -1,34 +1,23 @@
 /**
  * Virtuals Agent Integration
- * Handles communication with the Proxy agent on Virtuals GAME
+ * Handles communication with the Proxy agent on Virtuals
  */
 
 import axios from "axios";
 import { Proposal, GovernanceAction } from "@/types/governance";
-import { GameClient } from "@virtuals-protocol/game";
 
 const VIRTUALS_API_BASE = "https://api.virtuals.io/api";
 
 export class VirtualsService {
   private agentId: string;
   private apiKey: string;
-  private gameClient: GameClient | null = null;
 
   constructor() {
     this.agentId = process.env.VIRTUALS_AGENT_ID || "15865";
     this.apiKey = process.env.VIRTUALS_API_KEY || "";
     
-    // Initialize GAME client if API key is available
     if (this.apiKey) {
-      try {
-        this.gameClient = new GameClient({
-          apiKey: this.apiKey,
-          agentId: this.agentId,
-        });
-        console.log("✅ Virtuals GAME client initialized");
-      } catch (error) {
-        console.warn("⚠️ GAME client initialization failed, using fallback logic:", error);
-      }
+      console.log(`✅ Virtuals agent configured (ID: ${this.agentId})`);
     } else {
       console.log("ℹ️ VIRTUALS_API_KEY not set, using demo decision logic");
     }
@@ -44,8 +33,8 @@ export class VirtualsService {
       console.log(`📡 Notifying Virtuals GAME agent about ${proposals.length} proposal(s)`);
       console.log(`Summary: ${summary}`);
 
-      // Send to GAME API if available
-      if (this.apiKey && this.gameClient) {
+      // Send to Virtuals API if available
+      if (this.apiKey) {
         try {
           const payload = {
             type: "governance_update",
@@ -67,12 +56,12 @@ export class VirtualsService {
             },
           });
 
-          console.log("✅ Virtuals GAME agent notified via API");
+          console.log("✅ Virtuals agent notified via API");
         } catch (apiError) {
           console.warn("⚠️ API notification failed (non-critical):", apiError);
         }
       } else {
-        console.log("ℹ️ GAME client not available, skipping API notification");
+        console.log("ℹ️ API key not available, skipping notification");
       }
     } catch (error) {
       console.error("Error notifying Virtuals agent:", error);
@@ -86,32 +75,43 @@ export class VirtualsService {
     proposal: Proposal
   ): Promise<{ action: string; reason: string }> {
     try {
-      console.log(`🤔 Asking Virtuals GAME agent for decision on proposal ${proposal.id}`);
+      console.log(`🤔 Asking Virtuals agent for decision on proposal ${proposal.id}`);
 
-      // If GAME client is available, use AI reasoning
-      if (this.gameClient) {
+      // If API key is available, call Virtuals API for AI decision
+      if (this.apiKey) {
         try {
           const stateNames = ["Pending", "Active", "Canceled", "Defeated", "Succeeded", "Queued", "Expired", "Executed"];
           const stateName = stateNames[proposal.state] || "Unknown";
           
-          const decision = await this.gameClient.decide({
-            goal: "Maximize protocol value and governance participation for Compound",
-            state: {
-              proposalId: proposal.id,
-              description: proposal.description.slice(0, 500),
-              state: stateName,
-              forVotes: proposal.forVotes?.toString() || "0",
-              againstVotes: proposal.againstVotes?.toString() || "0",
-              abstainVotes: proposal.abstainVotes?.toString() || "0",
-              proposer: proposal.proposer,
+          // Call Virtuals API for AI decision
+          const response = await axios.post(
+            `${VIRTUALS_API_BASE}/agents/${this.agentId}/decide`,
+            {
+              goal: "Maximize protocol value and governance participation for Compound",
+              state: {
+                proposalId: proposal.id,
+                description: proposal.description.slice(0, 500),
+                state: stateName,
+                forVotes: proposal.forVotes?.toString() || "0",
+                againstVotes: proposal.againstVotes?.toString() || "0",
+                abstainVotes: proposal.abstainVotes?.toString() || "0",
+                proposer: proposal.proposer,
+              },
+              actions: ['vote_for', 'vote_against', 'abstain', 'queue', 'execute', 'monitor'],
+              context: `Analyzing Compound governance proposal ${proposal.id}. Current state: ${stateName}. Make a decision based on proposal content, voting statistics, and what benefits the protocol.`,
             },
-            actions: ['vote_for', 'vote_against', 'abstain', 'queue', 'execute', 'monitor'],
-            context: `Analyzing Compound governance proposal ${proposal.id}. Current state: ${stateName}. Make a decision based on proposal content, voting statistics, and what benefits the protocol.`,
-          });
+            {
+              headers: { 
+                Authorization: `Bearer ${this.apiKey}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
 
-          console.log(`🤖 GAME AI decision:`, decision);
+          const decision = response.data;
+          console.log(`🤖 Virtuals AI decision:`, decision);
           
-          // Map GAME decision to our action format
+          // Map decision to our action format
           const actionMap: Record<string, string> = {
             'vote_for': 'vote',
             'vote_against': 'vote',
@@ -125,8 +125,8 @@ export class VirtualsService {
             action: actionMap[decision.action] || 'monitor',
             reason: decision.reasoning || decision.reason || "AI-powered decision",
           };
-        } catch (gameError) {
-          console.warn("⚠️ GAME API error, using fallback logic:", gameError);
+        } catch (apiError) {
+          console.warn("⚠️ Virtuals API error, using fallback logic:", apiError);
         }
       }
 
