@@ -1,69 +1,136 @@
 /**
  * Virtuals Agent Integration
- * Handles communication with the Proxy agent on Virtuals
+ * Handles communication with the Proxy agent on Virtuals GAME
  */
 
 import axios from "axios";
 import { Proposal, GovernanceAction } from "@/types/governance";
+import { GameClient } from "@virtuals-protocol/game";
 
 const VIRTUALS_API_BASE = "https://api.virtuals.io/api";
 
 export class VirtualsService {
   private agentId: string;
   private apiKey: string;
+  private gameClient: GameClient | null = null;
 
   constructor() {
-    this.agentId = process.env.VIRTUALS_AGENT_ID || "";
+    this.agentId = process.env.VIRTUALS_AGENT_ID || "15865";
     this.apiKey = process.env.VIRTUALS_API_KEY || "";
+    
+    // Initialize GAME client if API key is available
+    if (this.apiKey) {
+      try {
+        this.gameClient = new GameClient({
+          apiKey: this.apiKey,
+          agentId: this.agentId,
+        });
+        console.log("✅ Virtuals GAME client initialized");
+      } catch (error) {
+        console.warn("⚠️ GAME client initialization failed, using fallback logic:", error);
+      }
+    } else {
+      console.log("ℹ️ VIRTUALS_API_KEY not set, using demo decision logic");
+    }
   }
 
   /**
-   * Send governance update to Virtuals agent
+   * Send governance update to Virtuals agent via GAME API
    */
   async notifyProposalUpdate(proposals: Proposal[]): Promise<void> {
     try {
-      // Format proposals for agent understanding
       const summary = this.generateProposalSummary(proposals);
 
-      console.log(`📡 Notifying Virtuals agent about ${proposals.length} proposal(s)`);
+      console.log(`📡 Notifying Virtuals GAME agent about ${proposals.length} proposal(s)`);
       console.log(`Summary: ${summary}`);
 
-      // In production, this would be an actual API call to Virtuals
-      // For demo, we log the interaction
-      const payload = {
-        type: "governance_update",
-        agentId: this.agentId,
-        message: summary,
-        proposals: proposals.map((p) => ({
-          id: p.id,
-          state: p.state,
-          description: p.description.slice(0, 200),
-        })),
-        timestamp: new Date().toISOString(),
-      };
+      // Send to GAME API if available
+      if (this.apiKey && this.gameClient) {
+        try {
+          const payload = {
+            type: "governance_update",
+            agentId: this.agentId,
+            message: summary,
+            proposals: proposals.map((p) => ({
+              id: p.id,
+              state: p.state,
+              description: p.description.slice(0, 200),
+            })),
+            timestamp: new Date().toISOString(),
+          };
 
-      // Simulated API call
-      // await axios.post(`${VIRTUALS_API_BASE}/agents/${this.agentId}/notify`, payload, {
-      //   headers: { Authorization: `Bearer ${this.apiKey}` }
-      // });
+          // Send notification to Virtuals API
+          await axios.post(`${VIRTUALS_API_BASE}/agents/${this.agentId}/notify`, payload, {
+            headers: { 
+              Authorization: `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+            },
+          });
 
-      console.log("✅ Virtuals agent notified");
+          console.log("✅ Virtuals GAME agent notified via API");
+        } catch (apiError) {
+          console.warn("⚠️ API notification failed (non-critical):", apiError);
+        }
+      } else {
+        console.log("ℹ️ GAME client not available, skipping API notification");
+      }
     } catch (error) {
       console.error("Error notifying Virtuals agent:", error);
     }
   }
 
   /**
-   * Request agent decision on governance action
+   * Request agent decision on governance action using GAME AI
    */
   async requestDecision(
     proposal: Proposal
   ): Promise<{ action: string; reason: string }> {
     try {
-      console.log(`🤔 Asking Virtuals agent for decision on proposal ${proposal.id}`);
+      console.log(`🤔 Asking Virtuals GAME agent for decision on proposal ${proposal.id}`);
 
-      // In production, agent would use AI reasoning
-      // For demo, we return simple logic-based decisions
+      // If GAME client is available, use AI reasoning
+      if (this.gameClient) {
+        try {
+          const stateNames = ["Pending", "Active", "Canceled", "Defeated", "Succeeded", "Queued", "Expired", "Executed"];
+          const stateName = stateNames[proposal.state] || "Unknown";
+          
+          const decision = await this.gameClient.decide({
+            goal: "Maximize protocol value and governance participation for Compound",
+            state: {
+              proposalId: proposal.id,
+              description: proposal.description.slice(0, 500),
+              state: stateName,
+              forVotes: proposal.forVotes?.toString() || "0",
+              againstVotes: proposal.againstVotes?.toString() || "0",
+              abstainVotes: proposal.abstainVotes?.toString() || "0",
+              proposer: proposal.proposer,
+            },
+            actions: ['vote_for', 'vote_against', 'abstain', 'queue', 'execute', 'monitor'],
+            context: `Analyzing Compound governance proposal ${proposal.id}. Current state: ${stateName}. Make a decision based on proposal content, voting statistics, and what benefits the protocol.`,
+          });
+
+          console.log(`🤖 GAME AI decision:`, decision);
+          
+          // Map GAME decision to our action format
+          const actionMap: Record<string, string> = {
+            'vote_for': 'vote',
+            'vote_against': 'vote',
+            'abstain': 'vote',
+            'queue': 'queue',
+            'execute': 'execute',
+            'monitor': 'monitor',
+          };
+
+          return {
+            action: actionMap[decision.action] || 'monitor',
+            reason: decision.reasoning || decision.reason || "AI-powered decision",
+          };
+        } catch (gameError) {
+          console.warn("⚠️ GAME API error, using fallback logic:", gameError);
+        }
+      }
+
+      // Fallback: Simple state-based logic
       let action = "monitor";
       let reason = "Monitoring proposal progress";
 
@@ -81,7 +148,7 @@ export class VirtualsService {
         reason = "Proposal is active and requires voting";
       }
 
-      console.log(`💡 Agent decision: ${action} - ${reason}`);
+      console.log(`💡 Agent decision (fallback logic): ${action} - ${reason}`);
 
       return { action, reason };
     } catch (error) {
@@ -91,25 +158,38 @@ export class VirtualsService {
   }
 
   /**
-   * Log action execution to agent
+   * Log action execution to Virtuals GAME agent
    */
   async logAction(action: GovernanceAction): Promise<void> {
     try {
-      console.log(`📝 Logging action to Virtuals agent:`, action);
+      console.log(`📝 Logging action to Virtuals GAME agent:`, action);
 
-      const payload = {
-        type: "action_executed",
-        agentId: this.agentId,
-        action,
-        timestamp: new Date().toISOString(),
-      };
+      if (this.apiKey) {
+        try {
+          const payload = {
+            type: "action_executed",
+            agentId: this.agentId,
+            action: {
+              type: action.type,
+              proposalId: action.proposalId.toString(),
+              txHash: action.txHash,
+              status: action.status,
+            },
+            timestamp: new Date().toISOString(),
+          };
 
-      // Simulated API call
-      // await axios.post(`${VIRTUALS_API_BASE}/agents/${this.agentId}/log`, payload, {
-      //   headers: { Authorization: `Bearer ${this.apiKey}` }
-      // });
+          await axios.post(`${VIRTUALS_API_BASE}/agents/${this.agentId}/log`, payload, {
+            headers: { 
+              Authorization: `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+            },
+          });
 
-      console.log("✅ Action logged to agent");
+          console.log("✅ Action logged to Virtuals GAME agent");
+        } catch (apiError) {
+          console.warn("⚠️ API log failed (non-critical):", apiError);
+        }
+      }
     } catch (error) {
       console.error("Error logging action:", error);
     }
